@@ -5,7 +5,8 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { UserCreationModal } from "@/components/user-creation-modal"
 import { PageCreationModal } from "@/components/page-creation-modal"
 import { PageEditModal } from "@/components/page-edit-modal"
-import { EnhancedVisualEditor } from "@/components/enhanced-visual-editor"
+import { UserSettingsModal } from "@/components/user-settings-modal"
+import { LivePageEditor } from "@/components/live-page-editor"
 import { PageViewer } from "@/components/page-viewer"
 import type { User, Page, ActivityLog } from "@/lib/auth"
 import {
@@ -23,8 +24,8 @@ import {
   LayoutDashboard,
   Users,
   FileText,
-  Code,
-  Palette,
+  BarChart3,
+  UserPlus,
   Eye,
   Trash2,
   CheckCircle,
@@ -35,12 +36,11 @@ import {
   TrendingUp,
   Clock,
   Settings,
-  BarChart3,
   Globe,
   ArrowLeft,
-  Wrench,
+  Palette,
+  Code,
 } from "lucide-react"
-import { UserSettingsModal } from "@/components/user-settings-modal"
 
 interface DeveloperDashboardProps {
   user: User
@@ -51,14 +51,12 @@ type DeveloperPage =
   | "dashboard"
   | "users"
   | "pages"
-  | "editor"
   | "user-detail"
   | "page-detail"
   | "page-view"
-  | "page-edit"
   | "user-pages"
   | "user-page-view"
-  | "user-page-edit"
+  | "live-edit"
 
 export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboardProps) {
   const [currentPage, setCurrentPage] = useState<DeveloperPage>("dashboard")
@@ -72,15 +70,14 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
   const [showPageModal, setShowPageModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [viewingPage, setViewingPage] = useState<Page | null>(null)
-  const [editingPage, setEditingPage] = useState<Page | null>(null)
   const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
   const [selectedUserForSettings, setSelectedUserForSettings] = useState<User | null>(null)
   const [viewingUserPage, setViewingUserPage] = useState<{ user: User; page: Page } | null>(null)
-  const [editingUserPage, setEditingUserPage] = useState<{ user: User; page: Page } | null>(null)
+  const [editingPage, setEditingPage] = useState<{ user: User; page: Page } | null>(null)
 
   useEffect(() => {
     loadData()
-    const interval = setInterval(loadData, 30000) // Refresh every 30 seconds
+    const interval = setInterval(loadData, 30000)
     return () => clearInterval(interval)
   }, [])
 
@@ -132,11 +129,6 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
     setCurrentPage("page-view")
   }
 
-  const handleEditPageContent = (page: Page) => {
-    setEditingPage(page)
-    setCurrentPage("page-edit")
-  }
-
   const handleUserSettings = (userData: User) => {
     setSelectedUserForSettings(userData)
     setShowUserSettingsModal(true)
@@ -147,9 +139,9 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
     setCurrentPage("user-page-view")
   }
 
-  const handleEditUserPage = (userData: User, page: Page) => {
-    setEditingUserPage({ user: userData, page })
-    setCurrentPage("user-page-edit")
+  const handleLiveEditPage = (userData: User, page: Page) => {
+    setEditingPage({ user: userData, page })
+    setCurrentPage("live-edit")
   }
 
   const sidebarItems = [
@@ -157,7 +149,6 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
     { id: "users", label: "User Management", icon: Users },
     { id: "pages", label: "Page Management", icon: FileText },
     { id: "user-pages", label: "User Pages", icon: BarChart3 },
-    { id: "editor", label: "Visual Editor", icon: Code },
   ]
 
   const sidebar = (
@@ -189,13 +180,8 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Developer Dashboard</h2>
-              <div className="flex items-center gap-3">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg">
-                  <span className="text-sm font-medium">Developer Mode</span>
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Last updated: {new Date().toLocaleTimeString()}
-                </div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Last updated: {new Date().toLocaleTimeString()}
               </div>
             </div>
 
@@ -210,32 +196,32 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                   change: `+${stats.recentRegistrations || 0} this month`,
                 },
                 {
-                  title: "Active Pages",
+                  title: "Active Users",
+                  value: stats.activeUsers || 0,
+                  icon: UserPlus,
+                  color: "bg-green-500",
+                  change: `${Math.round((stats.activeUsers / stats.totalUsers) * 100) || 0}% active`,
+                },
+                {
+                  title: "Total Pages",
                   value: stats.totalPages || 0,
                   icon: FileText,
-                  color: "bg-green-500",
+                  color: "bg-purple-500",
                   change: `${stats.activePages || 0} active`,
                 },
                 {
-                  title: "Code Commits",
-                  value: activities.filter((a) => a.action.includes("edit") || a.action.includes("create")).length,
-                  icon: Code,
-                  color: "bg-purple-500",
-                  change: "Auto-saved",
-                },
-                {
-                  title: "Live Edits",
-                  value: activities.filter((a) => a.action === "page_edit").length,
-                  icon: Palette,
+                  title: "Daily Traffic",
+                  value: stats.dailyTraffic || 0,
+                  icon: BarChart3,
                   color: "bg-orange-500",
-                  change: "Real-time",
+                  change: `${stats.monthlyTraffic || 0} this month`,
                 },
               ].map((stat, index) => {
                 const Icon = stat.icon
                 return (
                   <div
                     key={stat.title}
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-fade-in hover:shadow-lg transition-shadow"
+                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-fade-in hover:shadow-lg transition-all duration-300"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
                     <div className="flex items-center justify-between mb-4">
@@ -243,7 +229,7 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                         <p className="text-gray-600 dark:text-gray-400 text-sm">{stat.title}</p>
                         <p className="text-2xl font-bold text-gray-800 dark:text-white">{stat.value}</p>
                       </div>
-                      <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center`}>
+                      <div className={`w-12 h-12 ${stat.color} rounded-xl flex items-center justify-center`}>
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                     </div>
@@ -256,11 +242,41 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
               })}
             </div>
 
+            {/* Developer Tools */}
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center">
+                  <Code className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Developer Tools</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Advanced editing and management capabilities</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                  <Palette className="w-8 h-8 text-purple-500 mb-2" />
+                  <h4 className="font-semibold text-gray-800 dark:text-white">Live Page Editor</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Edit any user page in real-time</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                  <Eye className="w-8 h-8 text-blue-500 mb-2" />
+                  <h4 className="font-semibold text-gray-800 dark:text-white">Preview as User</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">See exactly what users see</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                  <Settings className="w-8 h-8 text-green-500 mb-2" />
+                  <h4 className="font-semibold text-gray-800 dark:text-white">Advanced Controls</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Full system management</p>
+                </div>
+              </div>
+            </div>
+
             {/* Recent Activity */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Activity className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Development Activity</h3>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Recent Activity</h3>
               </div>
               <div className="space-y-3 max-h-64 overflow-y-auto">
                 {activities.map((activity) => {
@@ -268,15 +284,9 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                   return (
                     <div
                       key={activity.id}
-                      className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
                     >
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          activity.action.includes("edit") || activity.action.includes("create")
-                            ? "bg-purple-500"
-                            : "bg-blue-500"
-                        }`}
-                      ></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       <div className="flex-1">
                         <p className="text-sm text-gray-800 dark:text-white">
                           <span className="font-medium">{activityUser?.name || "Unknown User"}</span> {activity.details}
@@ -295,36 +305,6 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
           </div>
         )
 
-      case "editor":
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Visual Page Editor</h2>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Select a page from Page Management to edit its content
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-purple-500 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <Code className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Page Editor</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Go to Page Management and click "Edit Content" on any page to start editing
-                </p>
-                <button
-                  onClick={() => setCurrentPage("pages")}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Go to Page Management
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-
       case "users":
         return (
           <div className="space-y-6">
@@ -334,7 +314,7 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                 <span className="text-sm text-gray-500 dark:text-gray-400">{users.length} total users</span>
                 <button
                   onClick={() => setShowUserModal(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl"
                 >
                   <Plus size={16} />
                   Add User
@@ -342,7 +322,7 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
               </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700">
@@ -366,7 +346,7 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                     {users.map((userData) => (
-                      <tr key={userData.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr key={userData.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">{userData.name}</div>
@@ -403,25 +383,29 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                           <button
                             onClick={() => handleViewUser(userData.id)}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                            title="View Details"
                           >
                             <Eye size={16} />
                           </button>
                           <button
                             onClick={() => handleUserSettings(userData)}
-                            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
+                            className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 transition-colors"
+                            title="User Settings"
                           >
                             <Settings size={16} />
                           </button>
                           <button
                             onClick={() => handleUserStatusToggle(userData.id, userData.isActive)}
-                            className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                            className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 transition-colors"
+                            title={userData.isActive ? "Deactivate" : "Activate"}
                           >
                             {userData.isActive ? <XCircle size={16} /> : <CheckCircle size={16} />}
                           </button>
                           <button
                             onClick={() => handleDeleteUser(userData.id)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                            title="Delete User"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -442,7 +426,7 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Page Management</h2>
               <button
                 onClick={() => setShowPageModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl"
               >
                 <Plus size={16} />
                 Create Page
@@ -453,7 +437,7 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
               {pages.map((page, index) => (
                 <div
                   key={page.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-fade-in hover:shadow-lg transition-shadow"
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-fade-in hover:shadow-lg transition-all duration-300"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="flex items-center justify-between mb-4">
@@ -475,42 +459,31 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                   <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                     Updated: {page.updatedAt.toLocaleDateString()}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex gap-2">
                     <button
                       onClick={() => handleViewPageContent(page)}
-                      className="px-3 py-2 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800 transition-colors text-sm flex items-center justify-center gap-2"
+                      className="flex-1 px-3 py-2 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-xl hover:bg-green-200 dark:hover:bg-green-800 transition-all duration-200 text-sm flex items-center justify-center gap-2"
                     >
                       <Eye size={14} />
                       View
                     </button>
                     <button
                       onClick={() => handleViewPage(page.id)}
-                      className="px-3 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors text-sm"
+                      className="px-3 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-800 transition-all duration-200 text-sm"
                     >
                       Details
                     </button>
                     <button
-                      onClick={() => handleEditPageContent(page)}
-                      className="px-3 py-2 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors text-sm flex items-center justify-center gap-2"
-                    >
-                      <Code size={14} />
-                      Edit Content
-                    </button>
-                    <button
                       onClick={() => handleEditPage(page)}
-                      className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm flex items-center justify-center gap-2"
+                      className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 text-sm"
                     >
                       <Edit size={14} />
-                      Settings
                     </button>
-                  </div>
-                  <div className="mt-2">
                     <button
                       onClick={() => handleDeletePage(page.id)}
-                      className="w-full px-3 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 transition-colors text-sm flex items-center justify-center gap-2"
+                      className="px-3 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-xl hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 text-sm"
                     >
                       <Trash2 size={14} />
-                      Delete
                     </button>
                   </div>
                 </div>
@@ -527,14 +500,13 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
               <div className="text-sm text-gray-500 dark:text-gray-400">Monitor and manage user page access</div>
             </div>
 
-            {/* User Pages Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {users
                 .filter((u) => u.role === "user")
                 .map((userData) => (
                   <div
                     key={userData.id}
-                    className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
+                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -569,11 +541,11 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                             return (
                               <div
                                 key={pageId}
-                                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
                               >
                                 <div className="flex items-center gap-3">
                                   <div
-                                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                    className={`w-8 h-8 rounded-xl flex items-center justify-center ${
                                       page.type === "powerbi"
                                         ? "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400"
                                         : page.type === "spreadsheet"
@@ -596,21 +568,21 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                                     </p>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1">
+                                <div className="flex gap-1">
                                   <button
                                     onClick={() => handleViewUserPage(userData, page)}
-                                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors text-xs flex items-center gap-1"
-                                    title="View as User"
+                                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-all duration-200 text-xs flex items-center gap-1"
+                                    title="Preview as User"
                                   >
                                     <Eye size={10} />
                                     View
                                   </button>
                                   <button
-                                    onClick={() => handleEditUserPage(userData, page)}
-                                    className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors text-xs flex items-center gap-1"
+                                    onClick={() => handleLiveEditPage(userData, page)}
+                                    className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-800 transition-all duration-200 text-xs flex items-center gap-1"
                                     title="Live Edit"
                                   >
-                                    <Wrench size={10} />
+                                    <Palette size={10} />
                                     Edit
                                   </button>
                                 </div>
@@ -625,13 +597,13 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                       <div className="flex gap-2 mt-4">
                         <button
                           onClick={() => handleUserSettings(userData)}
-                          className="flex-1 px-3 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors text-sm"
+                          className="flex-1 px-3 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-800 transition-all duration-200 text-sm"
                         >
                           Manage Access
                         </button>
                         <button
                           onClick={() => handleViewUser(userData.id)}
-                          className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                          className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 text-sm"
                         >
                           <Eye size={14} />
                         </button>
@@ -659,7 +631,7 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setCurrentPage("user-pages")}
-                  className="p-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  className="p-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
                 >
                   <ArrowLeft size={20} />
                 </button>
@@ -668,72 +640,39 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                     {viewingUserPage.user.name}'s View: {viewingUserPage.page.title}
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Developer View • Can Edit • {viewingUserPage.page.type.toUpperCase()}
+                    Developer Preview • Read Only • {viewingUserPage.page.type.toUpperCase()}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <div className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
+                  Preview Mode
+                </div>
                 <button
-                  onClick={() => handleEditUserPage(viewingUserPage.user, viewingUserPage.page)}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                  onClick={() => handleLiveEditPage(viewingUserPage.user, viewingUserPage.page)}
+                  className="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-sm font-medium hover:bg-purple-200 dark:hover:bg-purple-800 transition-all duration-200 flex items-center gap-1"
                 >
-                  <Wrench size={16} />
+                  <Palette size={12} />
                   Live Edit
                 </button>
-                <div className="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-sm font-medium">
-                  Developer View
-                </div>
               </div>
             </div>
 
-            <PageViewer
-              page={viewingUserPage.page}
-              onBack={() => setCurrentPage("user-pages")}
-              onEdit={() => handleEditUserPage(viewingUserPage.user, viewingUserPage.page)}
-              canEdit={true}
-            />
+            <PageViewer page={viewingUserPage.page} onBack={() => setCurrentPage("user-pages")} canEdit={false} />
           </div>
         )
 
-      case "user-page-edit":
-        if (!editingUserPage) return null
+      case "live-edit":
+        if (!editingPage) return null
         return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setCurrentPage("user-pages")}
-                  className="p-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                >
-                  <ArrowLeft size={20} />
-                </button>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                    Live Editing: {editingUserPage.user.name}'s {editingUserPage.page.title}
-                  </h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Real-time Visual Editor • All changes are live • {editingUserPage.page.type.toUpperCase()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm font-medium flex items-center gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  Live Editing
-                </div>
-              </div>
-            </div>
-
-            <EnhancedVisualEditor
-              page={editingUserPage.page}
-              userId={user.id}
-              onSave={(updatedPage) => {
-                loadData()
-                setCurrentPage("user-pages")
-              }}
-              onClose={() => setCurrentPage("user-pages")}
-            />
-          </div>
+          <LivePageEditor
+            user={editingPage.user}
+            page={editingPage.page}
+            onBack={() => setCurrentPage("user-pages")}
+            onSave={() => {
+              loadData()
+            }}
+          />
         )
 
       case "user-detail":
@@ -744,13 +683,13 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">User Details</h2>
               <button
                 onClick={() => setCurrentPage("users")}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
               >
                 Back to Users
               </button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">User Information</h3>
@@ -802,7 +741,7 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
                           return (
                             <div
                               key={pageId}
-                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
                             >
                               <div>
                                 <p className="font-medium text-gray-800 dark:text-white">{page?.title || pageId}</p>
@@ -832,23 +771,15 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Page Details</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleEditPage(selectedPage)}
-                  className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
-                >
-                  <Edit size={14} />
-                </button>
-                <button
-                  onClick={() => setCurrentPage("pages")}
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Back to Pages
-                </button>
-              </div>
+              <button
+                onClick={() => setCurrentPage("pages")}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
+              >
+                Back to Pages
+              </button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Page Information</h3>
@@ -882,15 +813,15 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
 
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Page Preview</h3>
-                  <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 min-h-64">
+                  <div className="bg-gray-100 dark:bg-gray-700 rounded-xl p-4 min-h-64">
                     {selectedPage.type === "html" && selectedPage.htmlContent ? (
                       <div dangerouslySetInnerHTML={{ __html: selectedPage.htmlContent }} />
                     ) : (
                       <div className="flex items-center justify-center h-full">
                         <div className="text-center">
-                          <div className="w-16 h-16 bg-blue-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+                          <div className="w-16 h-16 bg-blue-500 rounded-xl flex items-center justify-center mx-auto mb-4">
                             {selectedPage.type === "powerbi" ? (
-                              <LayoutDashboard className="w-8 h-8 text-white" />
+                              <BarChart3 className="w-8 h-8 text-white" />
                             ) : (
                               <FileText className="w-8 h-8 text-white" />
                             )}
@@ -912,134 +843,19 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
 
       case "page-view":
         if (!viewingPage) return null
-
-        if (viewingPage.type === "html" && viewingPage.htmlContent) {
-          return (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Viewing: {viewingPage.title}</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleEditPageContent(viewingPage)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-                  >
-                    <Code size={16} />
-                    Live Edit
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage("pages")}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    Back to Pages
-                  </button>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span>Live Preview - Real-time Embed Check</span>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div dangerouslySetInnerHTML={{ __html: viewingPage.htmlContent }} />
-                </div>
-              </div>
-            </div>
-          )
-        } else if ((viewingPage.type === "powerbi" || viewingPage.type === "spreadsheet") && viewingPage.embedUrl) {
-          return (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Viewing: {viewingPage.title}</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleEditPageContent(viewingPage)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-                  >
-                    <Code size={16} />
-                    Edit Settings
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage("pages")}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    Back to Pages
-                  </button>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                      <span>Live Embed Test - {viewingPage.type.toUpperCase()}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">URL: {viewingPage.embedUrl}</div>
-                  </div>
-                </div>
-                <iframe
-                  src={viewingPage.embedUrl}
-                  title={viewingPage.title}
-                  width="100%"
-                  height="600px"
-                  frameBorder="0"
-                  allowFullScreen
-                  onLoad={() => console.log("Embed loaded successfully")}
-                  onError={() => console.error("Embed failed to load")}
-                />
-              </div>
-            </div>
-          )
-        } else {
-          return (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Viewing: {viewingPage.title}</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleEditPageContent(viewingPage)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-                  >
-                    <Code size={16} />
-                    Configure
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage("pages")}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    Back to Pages
-                  </button>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <FileText className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">{viewingPage.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">{viewingPage.content}</p>
-                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                    No embed URL configured - Click Configure to add content
-                  </p>
-                </div>
-              </div>
-            </div>
-          )
-        }
-
-      case "page-edit":
-        if (!editingPage) return null
         return (
-          <EnhancedVisualEditor
-            page={editingPage}
-            userId={user.id}
-            onSave={(updatedPage) => {
-              loadData()
-              setCurrentPage("pages")
-            }}
-            onClose={() => setCurrentPage("pages")}
-          />
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Page Content</h2>
+              <button
+                onClick={() => setCurrentPage("pages")}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
+              >
+                Back to Pages
+              </button>
+            </div>
+            <PageViewer page={viewingPage} onBack={() => setCurrentPage("pages")} canEdit={true} />
+          </div>
         )
 
       default:
@@ -1082,6 +898,7 @@ export default function DeveloperDashboard({ user, onLogout }: DeveloperDashboar
         page={selectedPage}
         userId={user.id}
       />
+
       <UserSettingsModal
         isOpen={showUserSettingsModal}
         onClose={() => setShowUserSettingsModal(false)}

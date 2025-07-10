@@ -36,18 +36,16 @@ export function DashboardLayout({ children, user, title, sidebar, onLogout }: Da
           </div>
 
           <div className="flex items-center gap-3">
-            {(user.role === "admin" || user.role === "developer") && (
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                {darkMode ? (
-                  <Sun size={20} className="text-yellow-500" />
-                ) : (
-                  <Moon size={20} className="text-gray-600" />
-                )}
-              </button>
-            )}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              {darkMode ? (
+                <Sun size={20} className="text-yellow-500" />
+              ) : (
+                <Moon size={20} className="text-gray-600" />
+              )}
+            </button>
 
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
               <Settings size={16} className="text-gray-600 dark:text-gray-300" />

@@ -361,6 +361,19 @@ export const updatePage = (pageId: string, updates: Partial<Page>): boolean => {
   return false
 }
 
+export const updatePageLayout = (pageId: string, layoutData: any, userId: string): boolean => {
+  if (pages[pageId]) {
+    pages[pageId] = { 
+      ...pages[pageId], 
+      layoutData,
+      updatedAt: new Date() 
+    }
+    logActivity(userId, "page_layout_update", `Updated layout for page: ${pages[pageId].title}`)
+    return true
+  }
+  return false
+}
+
 export const deletePage = (pageId: string, userId: string): boolean => {
   if (pages[pageId]) {
     const pageTitle = pages[pageId].title

@@ -6,6 +6,7 @@ import { UserCreationModal } from "@/components/user-creation-modal"
 import { PageCreationModal } from "@/components/page-creation-modal"
 import { PageEditModal } from "@/components/page-edit-modal"
 import { UserSettingsModal } from "@/components/user-settings-modal"
+import { ManageAccessPanel } from "@/components/manage-access-panel"
 import { PageViewer } from "@/components/page-viewer"
 import type { User, Page, ActivityLog } from "@/lib/auth"
 import {
@@ -69,6 +70,7 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
   const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
   const [selectedUserForSettings, setSelectedUserForSettings] = useState<User | null>(null)
   const [viewingUserPage, setViewingUserPage] = useState<{ user: User; page: Page } | null>(null)
+  const [showManageAccess, setShowManageAccess] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -170,8 +172,17 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Dashboard Overview</h2>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Last updated: {new Date().toLocaleTimeString()}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowManageAccess(true)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl"
+                >
+                  <Settings size={16} />
+                  Manage Access
+                </button>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Last updated: {new Date().toLocaleTimeString()}
+                </div>
               </div>
             </div>
 
@@ -882,6 +893,14 @@ export default function AdminDashboard({ user, onLogout }: AdminDashboardProps) 
           setShowUserSettingsModal(false)
         }}
         user={selectedUserForSettings}
+      />
+
+      <ManageAccessPanel
+        isOpen={showManageAccess}
+        onClose={() => setShowManageAccess(false)}
+        onSuccess={() => {
+          loadData()
+        }}
       />
     </>
   )
